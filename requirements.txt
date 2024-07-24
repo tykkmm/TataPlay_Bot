@@ -5,3 +5,5 @@ hachoir
 pytz
 hachoir
 ffmpeg-python
+ffmpy
+poetry
