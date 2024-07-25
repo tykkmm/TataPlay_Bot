@@ -83,4 +83,3 @@ img2pdf
 dnspython==2.2.1
 pyromod==1.5
 pyrogram1==0.1.0
-base64
