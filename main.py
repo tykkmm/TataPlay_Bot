@@ -1,68 +1,61 @@
-import json, subprocess
+import asyncio
+import logging 
+import logging.config
+from config import Config  
+from pyrogram import Client, __version__
+from pyrogram.raw.all import layer 
+from pyrogram.enums import ParseMode
+from pyrogram.errors import FloodWait 
 
-from pyrogram import Client, filters
+logging.config.fileConfig('logging.conf')
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger("pyrogram").setLevel(logging.ERROR)
 
-from tata import download_catchup, download_playback_catchup
+class Bot(Client): 
+    def __init__(self):
+        super().__init__(
+            Config.BOT_SESSION,
+            api_hash=Config.API_HASH,
+            api_id=Config.API_ID,
+            plugins={
+                "root": "root"
+            },
+            workers=50,
+            bot_token=Config.BOT_TOKEN
+        )
+        self.log = logging
 
-from utils import check_user, get_tplay_data
+    async def start(self):
+        await super().start()
+        me = await self.get_me()
+        logging.info(f"{me.first_name} with for pyrogram v{__version__} (Layer {layer}) started on @{me.username}.")
+        self.id = me.id
+        self.username = me.username
+        self.first_name = me.first_name
+        self.set_parse_mode(ParseMode.DEFAULT)
+        text = "**๏[-ิ_•ิ]๏ bot restarted !**"
+        logging.info(text)
+        success = failed = 0
+        users = await db.get_all_frwd()
+        async for user in users:
+           chat_id = user['user_id']
+           try:
+              await self.send_message(chat_id, text)
+              success += 1
+           except FloodWait as e:
+              await asyncio.sleep(e.value + 1)
+              await self.send_message(chat_id, text)
+              success += 1
+           except Exception:
+              failed += 1 
+    #    await self.send_message("venombotsupport", text)
+        if (success + failed) != 0:
+           await db.rmve_frwd(all=True)
+           logging.info(f"Restart message status"
+                 f"success: {success}"
+                 f"failed: {failed}")
 
-from config import api_id, api_hash, bot_token, script_developer
-
-
-
-
-print("Installing YT-DLP")
-subprocess.run("pip install yt-dlp".split())
-
-
-data_json = get_tplay_data()
-
-app = Client("RC_tplay_dl_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
-
-
-
-
-@app.on_message(filters.incoming & filters.text)
-def tplay_past_catchup_dl_cmd_handler(app, message):
-
-    auth_user = check_user(message)
-    if auth_user is None:
-        return
-    
-    if "/tata" in message.text:
-        
-        if len(message.text.split()) < 3:
-            message.reply_text("<b>Syntax: </b>`/tata [channelName] | [filename]`")
-            return
-        
-        
-
-        cmd = message.text.split("|")
-        _, channel = cmd[0].strip().split(" ")
-
-        if channel not in data_json:
-            message.reply_text(f"<b>Channel Not in DB</b>")
-            return
-
-        download_playback_catchup(channel, cmd[1].strip() , data_json, app, message)
-
-    if not "watch.tataplay.com" in message.text:
-        return 
-    
-    if "coming-soon" in message.text:
-        message.reply_text(f"<b>Can't DL something which has not aired yet\nCheck URL and try again...</b>")
-        return
-    download_catchup(message.text , data_json, app, message)
-
-
-    
-
-@app.on_message(filters.incoming & filters.command(['start']) & filters.text)
-def start_cmd_handler(app, message):
-
-    message.reply_text("<b>A Telegram bot to download from tataPlay</b>\n\n`> >`<b> Made with Love by RC</b>")
-    
-
-print(script_developer , "\n")
-
-app.run()
+    async def stop(self, *args):
+        msg = f"@{self.username} stopped. Bye."
+        await super().stop()
+        logging.info(msg)
